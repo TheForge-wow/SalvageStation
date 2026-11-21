@@ -9,6 +9,7 @@
 ## X-Category: Professions
 ## X-Discord: https://discord.gg/yskDeZjQj7
 ## X-Curse-Project-ID: 1821911
+## X-Wago-ID: 56nb4D69
 
 Core.lua
 Data.lua
