@@ -1,0 +1,13 @@
+package-as: SalvageStation
+
+manual-changelog:
+  filename: RELEASE_NOTES.md
+  markup-type: markdown
+
+ignore:
+  - README.md
+  - RELEASING.md
+  - CURSEFORGE.md
+  - .github
+  - .pkgmeta
+  - RELEASE_NOTES.md

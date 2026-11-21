@@ -1,0 +1,75 @@
+name: Package and release
+
+on:
+  # Pushing a version tag (e.g. 1.2.5) releases everywhere a key is set
+  push:
+    tags:
+      - "*"
+  # "Run workflow" button on the Actions tab
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, e.g. 1.2.5 (an existing version re-uploads that release)"
+        required: true
+      curseforge:
+        description: "Upload to CurseForge"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      CF_API_KEY: ${{ secrets.CF_API_KEY }}
+      WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
+      GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Check out the addon
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Pick the version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            VERSION="${INPUT_VERSION#v}"
+            if git rev-parse -q --verify "refs/tags/$VERSION" >/dev/null; then
+              echo "Version $VERSION already exists: re-releasing that exact code."
+              git checkout -q "refs/tags/$VERSION"
+            else
+              echo "Tagging the latest code as $VERSION."
+              git tag "$VERSION"
+              git push origin "$VERSION"
+            fi
+          else
+            VERSION="${GITHUB_REF_NAME#v}"
+          fi
+          TOC=$(ls *.toc | head -n 1)
+          if ! grep -q "^## Version: $VERSION\s*$" "$TOC"; then
+            echo "::error::$TOC says '$(grep '^## Version:' "$TOC")', not $VERSION. Bump the version first."
+            exit 1
+          fi
+          echo "RELEASE_VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Pull this version's notes from CHANGELOG.md
+        run: |
+          awk -v v="$RELEASE_VERSION" '
+            /^## v/ { if (found) exit; if (index($0, "## v" v " ") == 1 || $0 == "## v" v) found = 1 }
+            found
+          ' CHANGELOG.md > RELEASE_NOTES.md
+          if [ ! -s RELEASE_NOTES.md ]; then
+            echo "::error::No '## v$RELEASE_VERSION' section found in CHANGELOG.md"
+            exit 1
+          fi
+          cat RELEASE_NOTES.md
+
+      - name: Package and upload
+        uses: BigWigsMods/packager@v2
+        with:
+          # -L skips CurseForge when the box is unchecked on a manual run
+          args: ${{ (github.event_name == 'workflow_dispatch' && !inputs.curseforge) && '-L' || '' }}

@@ -1,0 +1,9 @@
+<Bindings>
+    <Binding name="SALVAGESTATION_TOGGLE" header="SALVAGESTATION" category="ADDONS">
+        SalvageStation_Toggle()
+    </Binding>
+    <Binding name="CLICK SalvageStationNextButton:LeftButton" category="ADDONS">
+    </Binding>
+    <Binding name="CLICK SalvageStationCompactCast:LeftButton" category="ADDONS">
+    </Binding>
+</Bindings>

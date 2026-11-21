@@ -1,0 +1,28 @@
+## Interface: 16001
+## Title: |cffa178ffSalvage|r Station
+## Notes: One-click disenchanting for WoW Forever: possible results, protections, statistics and an auction house scanner.
+## Author: Scryptik
+## Version: 1.0.0
+## IconTexture: Interface\AddOns\SalvageStation\Media\Icon
+## SavedVariables: SalvageStationDB
+## OptionalDeps: TradeSkillMaster, Auctionator
+## X-Category: Professions
+## X-Discord: https://discord.gg/yskDeZjQj7
+
+Core.lua
+Data.lua
+Prices.lua
+Forecast.lua
+Scan.lua
+Destroy.lua
+Auction.lua
+Hooks.lua
+UI\Widgets.lua
+UI\Main.lua
+UI\PageDisenchant.lua
+UI\PageStats.lua
+UI\PageAuction.lua
+UI\PageIgnored.lua
+UI\PageSettings.lua
+UI\Compact.lua
+UI\TipPanel.lua
