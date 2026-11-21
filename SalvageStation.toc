@@ -8,6 +8,7 @@
 ## OptionalDeps: TradeSkillMaster, Auctionator
 ## X-Category: Professions
 ## X-Discord: https://discord.gg/yskDeZjQj7
+## X-Curse-Project-ID: 1821911
 
 Core.lua
 Data.lua
