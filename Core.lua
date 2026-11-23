@@ -2,7 +2,7 @@
 local ADDON, ns = ...
 _G.SalvageStation = ns
 
-ns.VERSION = "1.0.2"
+ns.VERSION = "1.0.3"
 ns.MEDIA = "Interface\\AddOns\\SalvageStation\\Media\\"
 ns.ADDON = ADDON
 

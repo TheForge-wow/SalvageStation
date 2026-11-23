@@ -8,10 +8,13 @@ ns.PageBuilders.auction = function(content, main)
     local p = CreateFrame("Frame", nil, content)
     p:SetAllPoints()
 
-    local scanBtn = W.Button(p, "Scan", 100, 28)
+    local scanBtn = W.Button(p, "Scan", 110, 28)
     scanBtn:SetPoint("TOPLEFT", 16, -16)
     scanBtn:SetScript("OnClick", function()
-        if Scan.running then Scan.Stop("stopped") else Scan.Start() end
+        if Scan.paused then
+            -- "Resume scan": let go of the lot being bought and carry on
+            if Buy.active then Buy.Cancel("cancelled") else Scan.Resume() end
+        elseif Scan.running then Scan.Stop("stopped") else Scan.Start() end
     end)
 
     local minLbl = W.Text(p, 12, C.dim)
@@ -149,9 +152,10 @@ ns.PageBuilders.auction = function(content, main)
     buy:SetPoint("RIGHT", -8, 0)
     buy.color = { 0.32, 0.87, 0.49 }
     buy:SetScript("OnClick", function() Buy.Confirm() end)
-    local cancel = W.Button(bar, "Cancel", 100, 30)
+    local cancel = W.Button(bar, "Skip", 100, 30)
     cancel:SetPoint("RIGHT", buy, "LEFT", -6, 0)
     cancel:SetScript("OnClick", function() Buy.Cancel("cancelled") end)
+    W.Tip(cancel, "Skip", "Don't buy this one. The scan carries on if it was running.")
 
     local page = { frame = p }
     function page.onShow()
@@ -160,8 +164,15 @@ ns.PageBuilders.auction = function(content, main)
     function page.refresh()
         for q, c in pairs(chips) do c:SetActive(o["ahQ" .. q]) end
         for _, b in ipairs(heads) do b:Paint() end
-        scanBtn:SetLabel(Scan.running and "Stop" or "Scan")
-        scanBtn:SetEnabled(Scan.open and not Buy.active and true or false)
+        if Scan.paused and Scan.running then
+            scanBtn:SetLabel("Resume scan")
+            scanBtn:SetActive(true)
+            scanBtn:SetEnabled(true)
+        else
+            scanBtn:SetLabel(Scan.running and "Stop" or "Scan")
+            scanBtn:SetActive(false)
+            scanBtn:SetEnabled(Scan.open and not Buy.active and true or false)
+        end
         local st = Scan.state
         if not Scan.open and not Scan.running then st = (#Scan.rows > 0) and "closed" or "idle" end
         if Scan.paused then st = "paused" end

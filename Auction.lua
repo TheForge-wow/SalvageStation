@@ -461,7 +461,9 @@ end
 
 function Buy.Confirm()
     if not Buy.active or Buy.state ~= "ready" or not Scan.open then return end
-    if GetTime() > Buy.deadline or not valid(currentLot()) then Buy.Cancel("stale"); return end
+    if GetTime() > Buy.deadline then Buy.Cancel("expired"); return end
+    local lot = currentLot()
+    if not valid(lot) then finish(lot and "changed" or "unavailable"); return end
     if GetMoney and GetMoney() < Buy.row.buyout then Buy.Cancel("money"); return end
     if C_AuctionHouse.IsThrottledMessageSystemReady and not C_AuctionHouse.IsThrottledMessageSystemReady() then return end
     Buy.state, Buy.deadline = "sent", GetTime() + 8
@@ -495,19 +497,19 @@ function Buy.OnEvent(event, key, message)
     Buy.waiting = nil
     local r = currentLot()
     if r then
-        if not valid(r) then Buy.Cancel("stale"); return end
+        if not valid(r) then finish("changed"); return end
         Buy.state, Buy.deadline = "ready", GetTime() + 15
         changed()
     elseif not C_AuctionHouse.HasFullItemSearchResults(key) then
         request("RequestMoreItemSearchResults")
     else
-        Buy.Cancel("stale")
+        finish("unavailable")
     end
 end
 
 function Buy.Tick()
     if not Buy.active then return end
-    if GetTime() > Buy.deadline then Buy.Cancel(Buy.state == "sent" and "unknown" or "stale"); return end
+    if GetTime() > Buy.deadline then Buy.Cancel(Buy.state == "sent" and "unknown" or "expired"); return end
     if not Buy.pending then return end
     if C_AuctionHouse.IsThrottledMessageSystemReady and not C_AuctionHouse.IsThrottledMessageSystemReady() then return end
     local name = Buy.pending
@@ -569,7 +571,7 @@ end
 
 Scan.STATE_TEXT = {
     idle = "Open the auction house and click Scan. Material prices come from TSM or Auctionator.",
-    browse = "Loading the item list...", filtering = "Checking prices...", search = "Checking listings...", paused = "Paused while you buy - it carries on afterwards.",
+    browse = "Loading the item list...", filtering = "Checking prices...", search = "Checking listings...", paused = "Paused while you buy. Click Buy or Skip, or Resume scan, to carry on scanning.",
     loading = "Loading item data...", norarity = "Pick at least one rarity to scan.",
     monitoring = "Full pass done. Watching for new and changed listings...",
     done = "Full pass done. Click Scan to check again.",
@@ -580,9 +582,10 @@ Scan.STATE_TEXT = {
 }
 Buy.STATE_TEXT = {
     checking = "Checking the lot is still there...", ready = "Ready - click Buy to confirm.", sent = "Buying...",
-    bought = "Bought!", stale = "That lot changed or is gone.", money = "Not enough gold.",
+    bought = "Bought!", stale = "Another search got in the way - click the row again.", money = "Not enough gold.",
     failed = "The purchase failed.", unknown = "No reply from the server - check your mail.",
-    unavailable = "That lot is gone.", cancelled = "Cancelled.",
+    unavailable = "That lot is gone - taken off the list.", cancelled = "Skipped.",
+    changed = "That lot changed - taken off the list.", expired = "Took too long - click the row to check it again.",
 }
 
 -- 1.0.0 stored the minimum profit in whole gold; it's now gold, silver and copper (in copper)

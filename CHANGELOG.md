@@ -1,5 +1,11 @@
 # Salvage Station
 
+## v1.0.3 — Easier buying from the auction scanner
+
+- **Resume scan:** while the auction scanner is paused for a purchase, the **Stop** button turns into a highlighted **Resume scan**. Click it to let that item go and carry on scanning, instead of hunting for Cancel.
+- The buy bar's **Cancel** button is now called **Skip**, and the status line says how to carry on: "Paused while you buy. Click Buy or Skip, or Resume scan, to carry on scanning."
+- **Gone or changed lots leave the list:** when you click an item and the auction house says that lot is gone or its price changed, it's taken off the list straight away, and the next item is selected for you. If it's still a deal at its new price, the next pass adds it back.
+
 ## v1.0.2 — Auction scanner fixes and /salvage debug
 
 - **Fixed:** items were marked **Needs 200** (or similar) and skipped by Disenchant Next. WoW Forever lets any Enchanting level disenchant anything, so the skill check has been removed.
