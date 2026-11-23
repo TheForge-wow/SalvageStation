@@ -9,7 +9,6 @@ local QNAME = { [2] = "Uncommon", [3] = "Rare", [4] = "Epic" }
 local function Tags(e)
     local t = {}
     if e.protected then t[#t + 1] = "|cffffba45" .. e.protected .. "|r" end
-    if e.warn then t[#t + 1] = "|cffff6b6b" .. e.warn .. "|r" end
     if e.worthMore then t[#t + 1] = (e.sellBy == "ah") and "|cff6fb0ffAH|r" or "|cffffd133Vendor|r" end
     if e.confirm and not e.protected then t[#t + 1] = "|cff8a8b94confirm|r" end
     return table.concat(t, "  ")
@@ -34,7 +33,6 @@ function ns.AddEntryTooltip(tt, e)
         end
     end
     if e.protected then tt:AddLine("Protected (" .. e.protected .. "): Disenchant Next skips it unless you select it", 1, 0.73, 0.27, true) end
-    if e.warn then tt:AddLine("Your Enchanting skill may be too low (" .. e.warn .. ")", unpack(C.warn)) end
     if e.confirm then tt:AddLine("Asks to confirm: " .. e.confirm, C.gold[1], C.gold[2], C.gold[3], true) end
 end
 

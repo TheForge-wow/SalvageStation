@@ -321,9 +321,9 @@ ns.PageBuilders.settings = function(content, main)
             wipe(ns.db.samples); ns:RequestRefresh(0); ns.Print("Learned results cleared.")
         end, "Forgets what your own disenchants have taught it and goes back to the tables.")
         bLearn:SetPoint("TOPLEFT", LX, y)
-        local bCheck = W.Button(pg, "Self-check", 96, 26)
+        local bCheck = W.Button(pg, "Debug report", 96, 26)
         bCheck:SetPoint("LEFT", bLearn, "RIGHT", 6, 0)
-        W.Tip(bCheck, "Self-check", "Opens a report you can copy into a bug report.")
+        W.Tip(bCheck, "Debug report", "Opens a report you can copy and paste into Discord. Same as /salvage debug.")
         bCheck:SetScript("OnClick", function() ns.ShowReport() end)
 
         local ry = -8

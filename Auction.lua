@@ -99,11 +99,21 @@ function Scan.IsCandidate(result)
     if Blocked(key.itemID) then return false end
     -- weapons and armor only: GetItemInfoInstant needs no server data, so other items are dropped at once
     local instant = C_Item and C_Item.GetItemInfoInstant or GetItemInfoInstant
+    local instantClass
     if instant then
         local _, _, _, _, _, classID = instant(key.itemID)
+        instantClass = classID
         if classID and classID ~= 2 and classID ~= 4 then return false end
     end
-    local item = ItemFor(key.itemID)
+    -- Gear is priced from its rarity, item level and type. All three are known without asking
+    -- the server (rarity from the browse it came from, level from the listing), so thousands of
+    -- green items no longer wait on item data that can't all load in time.
+    local item
+    if result.ssQuality and instantClass and (key.itemLevel or 0) > 0 then
+        item = { itemID = key.itemID, quality = result.ssQuality, baseIlvl = key.itemLevel, classID = instantClass, stack = 1 }
+    else
+        item = ItemFor(key.itemID)
+    end
     if not item then return nil end
     if item.classID ~= 2 and item.classID ~= 4 then return false end
     if not Scan.WantsQuality(item.quality) then return false end
@@ -114,9 +124,28 @@ function Scan.IsCandidate(result)
 end
 
 local function finishRound()
+    -- A deal only leaves the list when this pass proved it's gone: its item was searched and the
+    -- auction wasn't there (sold or expired), or its price is no longer a deal. If the item just
+    -- didn't come back from the server this pass, keep it, and drop it after 3 such passes.
     local rows = {}
+    Scan.keptUnseen = 0
     for _, r in ipairs(Scan.rows) do
-        if Scan.confirmed[r.auctionID] or (r.itemKey and Scan.keepKeys[identity(r.itemKey)]) then rows[#rows + 1] = r end
+        local k = r.itemKey and identity(r.itemKey)
+        local keep
+        if Scan.confirmed[r.auctionID] or (k and Scan.keepKeys[k]) then
+            r.missed, keep = 0, true
+        elseif k and (Scan.searchedKeys[k] or Scan.rejectedKeys[k]) then
+            keep = false
+        elseif k and Scan.seen[k] then
+            -- still listed, its details just didn't load this pass: keep it as it was
+            keep = true
+            Scan.keptUnseen = Scan.keptUnseen + 1
+        else
+            r.missed = (r.missed or 0) + 1
+            keep = r.missed < 3
+            if keep then Scan.keptUnseen = Scan.keptUnseen + 1 end
+        end
+        if keep then rows[#rows + 1] = r end
     end
     Scan.rows = rows
     sortRows()
@@ -132,6 +161,7 @@ local function finishRound()
     changed()
 end
 
+local sendNextBrowse
 local function nextItem()
     Scan.index = Scan.index + 1
     Scan.current = Scan.keys[Scan.index]
@@ -142,10 +172,26 @@ local function nextItem()
     changed()
 end
 
+local QUALITY_FILTER = { [2] = "UncommonQuality", [3] = "RareQuality", [4] = "EpicQuality" }
+-- only the Weapons and Armor categories, one rarity at a time; returns false when none are left
+sendNextBrowse = function()
+    local qq = table.remove(Scan.browseQueue or {}, 1)
+    if not qq then return false end
+    Scan.browsing = qq
+    local F = Enum and Enum.AuctionHouseFilter
+    local filters = (F and F[QUALITY_FILTER[qq]]) and { F[QUALITY_FILTER[qq]] } or {}
+    Scan.state = "browse"
+    Scan.browseProgressAt = GetTime()
+    enqueue("SendBrowseQuery", { searchString = "", sorts = {}, filters = filters,
+        itemClassFilters = { { classID = 2 }, { classID = 4 } } })
+    return true
+end
+
 local function beginRound()
     ns.Prices.ClearCache()
     Scan.keys, Scan.seen, Scan.lots, Scan.confirmed = {}, {}, {}, {}
     Scan.keepKeys, Scan.signatures = {}, {}
+    Scan.searchedKeys, Scan.rejectedKeys = {}, {}
     Scan.unchanged, Scan.auditUsed = 0, false
     Scan.summaries, Scan.summaryIndices, Scan.deferred = {}, {}, {}
     Scan.rowsByID = {}
@@ -156,16 +202,13 @@ local function beginRound()
     Scan.running, Scan.state = true, "browse"
     Scan.browseProgressAt = GetTime()
     Scan.current = nil
-    -- only the Weapons and Armor categories, and only the rarities picked on the Auction page
-    local filters = {}
-    local q = Enum and Enum.AuctionHouseFilter
-    if q then
-        local o = ns.opts
-        if o.ahQ2 and q.UncommonQuality then filters[#filters + 1] = q.UncommonQuality end
-        if o.ahQ3 and q.RareQuality then filters[#filters + 1] = q.RareQuality end
-        if o.ahQ4 and q.EpicQuality then filters[#filters + 1] = q.EpicQuality end
+    -- One browse per rarity, Epic first. Asking for all rarities at once let the server fill
+    -- its result list with Uncommon gear, so Rares and Epics never came back.
+    Scan.browseQueue, Scan.byQuality, Scan.keyQuality = {}, { [2] = 0, [3] = 0, [4] = 0 }, {}
+    for _, qq in ipairs({ 4, 3, 2 }) do
+        if ns.opts["ahQ" .. qq] then Scan.browseQueue[#Scan.browseQueue + 1] = qq end
     end
-    enqueue("SendBrowseQuery", { searchString = "", sorts = {}, filters = filters, itemClassFilters = { { classID = 2 }, { classID = 4 } } })
+    sendNextBrowse()
     changed()
 end
 
@@ -201,7 +244,7 @@ end
 
 local function filterBatch()
     local done = 0
-    while Scan.filterIndex <= #Scan.summaries and done < 100 do
+    while Scan.filterIndex <= #Scan.summaries and done < 300 do
         local result = Scan.summaries[Scan.filterIndex]
         local candidate, reason, value = Scan.IsCandidate(result)
         local key = identity(result.itemKey)
@@ -224,7 +267,7 @@ local function filterBatch()
         else
             Scan.verified[key] = nil
             Scan.filtered = Scan.filtered + 1
-            if reason == "unpriced" then Scan.skipped = Scan.skipped + 1 end
+            if reason == "unpriced" then Scan.skipped = Scan.skipped + 1 else Scan.rejectedKeys[key] = true end
         end
         Scan.filterIndex, done = Scan.filterIndex + 1, done + 1
     end
@@ -278,6 +321,7 @@ local function readListings()
         enqueue("RequestMoreItemSearchResults", Scan.current)
     else
         local key = identity(Scan.current)
+        if not Scan.currentIncomplete then Scan.searchedKeys[key] = true end
         if not Scan.currentIncomplete and Scan.signatures[key] then
             Scan.verified[key] = { signature = Scan.signatures[key], checkedAt = GetTime() }
         else
@@ -299,6 +343,7 @@ function Scan.OnEvent(event, key)
             local itemKey = result.itemKey
             if itemKey then
                 local id = identity(itemKey)
+                result.ssQuality = Scan.browsing
                 local index = Scan.summaryIndices[id]
                 if index then
                     Scan.summaries[index] = result
@@ -308,10 +353,13 @@ function Scan.OnEvent(event, key)
                     Scan.summaries[#Scan.summaries + 1] = result
                     Scan.summaryIndices[id] = #Scan.summaries
                     Scan.total = Scan.total + 1
+                    if Scan.browsing then Scan.byQuality[Scan.browsing] = (Scan.byQuality[Scan.browsing] or 0) + 1 end
                 end
             end
         end
         if C_AuctionHouse.HasFullBrowseResults() then
+            if sendNextBrowse() then changed(); return end
+            Scan.browsing = nil
             Scan.state = "filtering"
             Scan.filterDeadline = GetTime() + 5
             filterBatch()

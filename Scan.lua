@@ -184,11 +184,6 @@ local function Evaluate(bag, slot, info, o, counts)
 
     e.worthMore = (o.flagWorthMore and e.mats and e.value > e.mats) and true or false
 
-    -- skill (original-era tables): soft warning
-    if ns.vanillaData and ns.enchSkill then
-        local req = ns.Data.RequiredSkill(e.baseIlvl)
-        if ns.enchSkill < req then e.warn = "Needs " .. req end
-    end
 
     -- safety confirm reasons
     if o.confirmEpic and quality == 4 then
@@ -241,7 +236,7 @@ end
 ------------------------------------------------------------------------
 -- Selection (TSM: the selected row is what "Disenchant next" uses)
 ------------------------------------------------------------------------
-local function Auto(e) return not e.protected and not e.warn and not e.locked end
+local function Auto(e) return not e.protected and not e.locked end
 
 function ns.Selected()
     for i, e in ipairs(ns.list) do

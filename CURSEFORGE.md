@@ -63,10 +63,10 @@ Built from the best ideas in TSM's Destroying window and Disenchantry, styled to
 - Every option has its own on/off switch.
 
 ## Commands
-`/salvage` or `/sst` open the window · `/salvage compact` compact bar · `/salvage stats` statistics · `/salvage settings` settings · `/salvage auction` auction scanner · `/salvage check` self-check · `/salvage copy` bug report
+`/salvage` or `/sst` open the window · `/salvage compact` compact bar · `/salvage stats` statistics · `/salvage settings` settings · `/salvage auction` auction scanner · `/salvage check` self-check · `/salvage debug` debug report
 
 ## Feedback
-Bugs, ideas and test builds: **[The Forge Discord](https://discord.gg/yskDeZjQj7)**. Run `/salvage copy` and paste the report when you report a bug.
+Bugs, ideas and test builds: **[The Forge Discord](https://discord.gg/yskDeZjQj7)**. Run `/salvage debug` and paste the report when you report a bug.
 
 Also by Scryptik: **Artisan Network** and **Lifeline**.
 

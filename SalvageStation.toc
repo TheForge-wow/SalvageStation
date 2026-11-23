@@ -2,7 +2,7 @@
 ## Title: |cffa178ffSalvage|r Station
 ## Notes: One-click disenchanting for WoW Forever: possible results, protections, statistics and an auction house scanner.
 ## Author: Scryptik
-## Version: 1.0.1
+## Version: 1.0.2
 ## IconTexture: Interface\AddOns\SalvageStation\Media\Icon
 ## SavedVariables: SalvageStationDB
 ## OptionalDeps: TradeSkillMaster, Auctionator

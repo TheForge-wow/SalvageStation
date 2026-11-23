@@ -146,12 +146,3 @@ function D.Band(itemID, quality, level)
     return tostring(level)
 end
 
--- Enchanting skill needed by item level (original tables). Soft warning only.
-local SKILL = { { 20, 1 }, { 25, 25 }, { 30, 50 }, { 35, 75 }, { 40, 100 }, { 45, 125 },
-                { 50, 150 }, { 55, 175 }, { 60, 200 }, { 999, 225 } }
-function D.RequiredSkill(level)
-    for _, s in ipairs(SKILL) do
-        if level <= s[1] then return s[2] end
-    end
-    return 225
-end

@@ -383,6 +383,14 @@ function ns.Report()
     add("Data bar", ns.BrokerStatus())
     add("Auction house API", ns.AuctionScan.Supported() and "supported" or "not available")
     add("Auction scan", tostring(ns.AuctionScan.state) .. (ns.AuctionScan.lastError and (" err=" .. ns.AuctionScan.lastError) or ""))
+    local S = ns.AuctionScan
+    if S.byQuality then
+        add("Auction last pass", string.format("Epic %d, Rare %d, Uncommon %d listed (rarities on: %s%s%s), %d could be deals, pass %d",
+            S.byQuality[4] or 0, S.byQuality[3] or 0, S.byQuality[2] or 0,
+            ns.opts.ahQ4 and "E" or "", ns.opts.ahQ3 and "R" or "", ns.opts.ahQ2 and "U" or "",
+            S.keys and #S.keys or 0, S.round or 0) .. string.format(", %d deals shown, %d kept while unseen",
+            S.rows and #S.rows or 0, S.keptUnseen or 0))
+    end
     add("Hotkey", ns.opts.hotkey or "none")
     add("Click on key down", (GetCVarBool and GetCVarBool("ActionButtonUseKeyDown")) and "yes" or "no")
     add("Busy", ns.busy and "yes" or "no")
@@ -393,46 +401,101 @@ function ns.Report()
     return L
 end
 
+-- Debug report window (/salvage debug), laid out like Lifeline's: the text is
+-- already selected, so a player only has to press Ctrl+C and paste it in Discord.
 local copyFrame
+local function SelectAll()
+    copyFrame.eb:SetFocus()
+    copyFrame.eb:HighlightText()
+end
 function ns.ShowReport()
     if not copyFrame then
-        copyFrame = CreateFrame("Frame", "SalvageStationReport", UIParent)
-        copyFrame:SetSize(520, 340)
-        copyFrame:SetPoint("CENTER")
-        copyFrame:SetFrameStrata("FULLSCREEN_DIALOG")
-        copyFrame:EnableMouse(true)
-        copyFrame:SetMovable(true)
-        copyFrame:RegisterForDrag("LeftButton")
-        copyFrame:SetScript("OnDragStart", copyFrame.StartMoving)
-        copyFrame:SetScript("OnDragStop", copyFrame.StopMovingOrSizing)
-        W.Fill(copyFrame, C.bg)
-        W.Border(copyFrame, { 0, 0, 0, 1 })
+        local f = CreateFrame("Frame", "SalvageStationReport", UIParent)
+        copyFrame = f
+        f:SetSize(560, 440)
+        f:SetPoint("CENTER", 0, 40)
+        f:SetFrameStrata("FULLSCREEN_DIALOG")
+        f:SetToplevel(true)
+        f:EnableMouse(true)
+        f:SetMovable(true)
+        f:SetClampedToScreen(true)
+        f:RegisterForDrag("LeftButton")
+        f:SetScript("OnDragStart", f.StartMoving)
+        f:SetScript("OnDragStop", f.StopMovingOrSizing)
+        W.Fill(f, C.bg)
+        W.Border(f, { 0, 0, 0, 1 })
         tinsert(UISpecialFrames, "SalvageStationReport")
-        local t = W.Label(copyFrame, "Self-check report")
-        t:SetPoint("TOPLEFT", 16, -14)
-        local hint = W.Text(copyFrame, 11, C.dim)
-        hint:SetPoint("TOPLEFT", 16, -30)
-        hint:SetText("Ctrl+A to select, Ctrl+C to copy, then paste it into your bug report.")
-        local x = W.Button(copyFrame, "Close", 70, 22)
-        x:SetPoint("TOPRIGHT", -12, -10)
-        x:SetScript("OnClick", function() copyFrame:Hide() end)
-        local sf = CreateFrame("ScrollFrame", nil, copyFrame, "UIPanelScrollFrameTemplate")
-        sf:SetPoint("TOPLEFT", 16, -52)
-        sf:SetPoint("BOTTOMRIGHT", -34, 14)
+
+        local bar = W.Fill(f, { 1, 1, 1, 1 }, "ARTWORK")
+        bar:ClearAllPoints()
+        bar:SetPoint("TOPLEFT", 1, -1); bar:SetPoint("TOPRIGHT", -1, -1); bar:SetHeight(2)
+        W.Accentize(bar, "tex")
+        local logo = f:CreateTexture(nil, "ARTWORK")
+        logo:SetSize(24, 24)
+        logo:SetPoint("TOPLEFT", 14, -12)
+        logo:SetTexture(ns.MEDIA .. "Icon")
+        local title = W.Text(f, 15, C.text)
+        title:SetPoint("LEFT", logo, "RIGHT", 8, 0)
+        title:SetText("Salvage Station")
+        local sub = W.Text(f, 12, C.text)
+        sub:SetPoint("LEFT", title, "RIGHT", 8, -1)
+        sub:SetText("debug report")
+        W.Accentize(sub, "text")
+
+        local note = W.Text(f, 12, C.dim)
+        note:SetPoint("TOPLEFT", 16, -48)
+        note:SetWidth(528)
+        note:SetWordWrap(true)
+        note:SetText("The text is already selected. Press |cff52de7cCtrl+C|r to copy it, then paste it in Discord with |cff52de7cCtrl+V|r.")
+
+        local holder = CreateFrame("Frame", nil, f)
+        holder:SetPoint("TOPLEFT", 16, -72)
+        holder:SetPoint("BOTTOMRIGHT", -16, 52)
+        W.Fill(holder, { 0, 0, 0, 0.35 })
+        W.Border(holder)
+        local sf = CreateFrame("ScrollFrame", nil, holder)
+        sf:SetPoint("TOPLEFT", 8, -8)
+        sf:SetPoint("BOTTOMRIGHT", -8, 8)
+        sf:EnableMouseWheel(true)
+        sf:SetScript("OnMouseWheel", function(self, d)
+            local max = self:GetVerticalScrollRange()
+            self:SetVerticalScroll(math.max(0, math.min(max, self:GetVerticalScroll() - d * 40)))
+        end)
         local eb = CreateFrame("EditBox", nil, sf)
         eb:SetMultiLine(true)
+        eb:SetMaxLetters(0)
         eb:SetAutoFocus(false)
         eb:SetFont(STANDARD_TEXT_FONT, 11, "")
         eb:SetTextColor(0.9, 0.9, 0.92)
-        eb:SetWidth(460)
-        eb:SetScript("OnEscapePressed", function() copyFrame:Hide() end)
+        eb:SetWidth(504)
+        -- read-only: typing puts the report back and keeps it selected
+        eb:SetScript("OnTextChanged", function(self, user)
+            if user and f.text then self:SetText(f.text); self:HighlightText() end
+        end)
+        eb:SetScript("OnEscapePressed", function() f:Hide() end)
+        eb:SetScript("OnCursorChanged", function(self, _, y, _, h)
+            local top = sf:GetVerticalScroll()
+            if -y < top then sf:SetVerticalScroll(-y)
+            elseif -y + h > top + sf:GetHeight() then sf:SetVerticalScroll(-y + h - sf:GetHeight()) end
+        end)
         sf:SetScrollChild(eb)
-        copyFrame.eb = eb
+        holder:EnableMouse(true)
+        holder:SetScript("OnMouseDown", SelectAll)
+        f.eb, f.sf = eb, sf
+
+        local sel = W.Button(f, "Select all", 110, 26)
+        sel:SetPoint("BOTTOMLEFT", 16, 14)
+        sel:SetScript("OnClick", SelectAll)
+        local close = W.Button(f, "Close", 100, 26)
+        close:SetPoint("LEFT", sel, "RIGHT", 8, 0)
+        close:SetScript("OnClick", function() f:Hide() end)
+        f:SetScript("OnHide", function() eb:ClearFocus() end)
     end
-    copyFrame.eb:SetText(table.concat(ns.Report(), "\n"))
+    copyFrame.text = table.concat(ns.Report(), "\n")
+    copyFrame.eb:SetText(copyFrame.text)
     copyFrame:Show()
-    copyFrame.eb:SetFocus()
-    copyFrame.eb:HighlightText()
+    copyFrame.sf:SetVerticalScroll(0)
+    SelectAll()
 end
 
 ------------------------------------------------------------------------
@@ -589,8 +652,8 @@ SlashCmdList.SALVAGESTATION = function(msg)
         ns.OpenWindow(nil, "auction")
     elseif msg == "check" then
         for _, line in ipairs(ns.Report()) do print("  " .. line) end
-        ns.Print("Type /salvage copy to open a copyable report.")
-    elseif msg == "copy" then
+        ns.Print("Type /salvage debug to open a report you can copy.")
+    elseif msg == "debug" or msg == "copy" then
         ns.ShowReport()
     elseif msg == "refresh" then
         ns:RequestRefresh(0)
@@ -610,7 +673,7 @@ SlashCmdList.SALVAGESTATION = function(msg)
         print("  /salvage compact | full - switch between the compact bar and the full window")
         print("  /salvage stats | settings | auction - open a page")
         print("  /salvage refresh - rescan your bags")
-        print("  /salvage check - self-check  ·  /salvage copy - copyable report")
+        print("  /salvage check - self-check  ·  /salvage debug - debug report to copy")
         print("  /salvage minimap - show or hide the minimap button")
         print("  /salvage reset - reset window positions")
         print("  Alt+Right-click an item in your bags to ignore it")

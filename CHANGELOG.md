@@ -1,5 +1,14 @@
 # Salvage Station
 
+## v1.0.2 — Auction scanner fixes and /salvage debug
+
+- **Fixed:** items were marked **Needs 200** (or similar) and skipped by Disenchant Next. WoW Forever lets any Enchanting level disenchant anything, so the skill check has been removed.
+- **Fixed:** with **Uncommon** turned on, the auction scanner only ever found green items, even with Rare and Epic on too. Each rarity is now loaded on its own, Epic first, so Rares and Epics always come through.
+- **Fixed:** deals could vanish from the auction list at the start of a new pass. A deal now only leaves the list once a pass shows it's sold, expired or no longer a deal.
+- **Faster passes with lots of green gear:** the scanner now prices gear from its rarity, item level and type straight from the auction listing, without waiting for each item's details to load. With 20,000+ green items, many used to time out and be skipped every pass.
+- **`/salvage debug`** now opens the debug report, the same command as Lifeline's `/ll debug`. The window matches Lifeline's too: the report is already selected, so just press Ctrl+C and paste it in Discord. `/salvage copy` still works.
+- The **Self-check** button in **Settings › Window** is now called **Debug report**.
+
 ## v1.0.1 — Auction scanner upgrades
 
 **Auction scanner**

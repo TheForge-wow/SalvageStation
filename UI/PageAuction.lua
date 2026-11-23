@@ -166,6 +166,9 @@ ns.PageBuilders.auction = function(content, main)
         if not Scan.open and not Scan.running then st = (#Scan.rows > 0) and "closed" or "idle" end
         if Scan.paused then st = "paused" end
         local stText = Scan.STATE_TEXT[st] or st
+        if st == "browse" and Scan.browsing then
+            stText = "Loading the item list: " .. QNAME[Scan.browsing] .. " gear..."
+        end
         if (st == "search" or st == "loading") and Scan.keys and #Scan.keys > 0 then
             local cur = Scan.current and C_AuctionHouse.GetItemKeyInfo and C_AuctionHouse.GetItemKeyInfo(Scan.current)
             stText = string.format("Checking listings %d of %d%s", math.min(Scan.index or 0, #Scan.keys), #Scan.keys,

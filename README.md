@@ -2,7 +2,7 @@
 
 One-click disenchanting built for WoW Forever: see what an item will give you, whether it's worth more sold, and disenchant your bags with one button.
 
-- **Bugs, feedback & test builds:** [The Forge Discord](https://discord.gg/yskDeZjQj7) (run `/salvage copy` in game and paste the report)
+- **Bugs, feedback & test builds:** [The Forge Discord](https://discord.gg/yskDeZjQj7) (run `/salvage debug` in game and paste the report)
 
 ## Features
 - Disenchant window and compact bar with **possible results** for every item
@@ -23,6 +23,6 @@ One-click disenchanting built for WoW Forever: see what an item will give you, w
 | `/salvage settings` | Open Settings |
 | `/salvage auction` | Open the auction scanner |
 | `/salvage check` | Run a self-check |
-| `/salvage copy` | Open a copyable bug report |
+| `/salvage debug` | Open a debug report you can copy and paste into Discord |
 
 Auction scanning code and WoW Forever disenchant data adapted from Disenchantry (MIT License). See NOTICE.txt.
