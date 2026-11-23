@@ -1,5 +1,16 @@
 # Salvage Station
 
+## v1.0.1 — Auction scanner upgrades
+
+**Auction scanner**
+- Gear with random "of the ..." names (like *of the Owl*) is now checked once and remembered, instead of being searched again on every pass while its item data loaded.
+- Clearer counts: how many weapons and armor are listed, how many could be deals, and how many unchanged items each pass skipped.
+- **Minimum profit** now takes gold, silver and copper, like the auction house, so you can set amounts like 50 silver. Your old setting carries over.
+- **Pick rarities to scan:** Uncommon, Rare and Epic buttons on the Auction page. Only the rarities you pick are searched, so a scan finishes sooner. Changing them restarts a running scan.
+- The scan only looks at the **Weapons** and **Armor** categories, and anything else is dropped straight away without loading its details.
+- New **Rarity** sort: click it to list Epics first, click again for Uncommons first.
+- New switch in **Settings › Prices**: **Keep watching after a full pass**. Turn it off to stop after checking the whole auction house once.
+
 ## v1.0.0 — First release
 
 One-click disenchanting built for WoW Forever, taking the best ideas from TSM's Destroying window and Disenchantry.

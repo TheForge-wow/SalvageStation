@@ -17,29 +17,49 @@ ns.PageBuilders.auction = function(content, main)
     local minLbl = W.Text(p, 12, C.dim)
     minLbl:SetPoint("LEFT", scanBtn, "RIGHT", 16, 0)
     minLbl:SetText("Minimum profit")
-    local minBox = W.EditBox(p, 56, 26, "0")
-    minBox:SetNumeric(true)
-    minBox:SetMaxLetters(5)
+    local minBox = W.MoneyBox(p, function() return o.auctionMinProfitCopper or 0 end,
+        function(v) o.auctionMinProfitCopper = v end)
     minBox:SetPoint("LEFT", minLbl, "RIGHT", 8, 0)
-    minBox.onChange = function(t) o.auctionMinProfit = tonumber(t) or 0 end
     local gl = W.Text(p, 12, C.dim)
-    gl:SetPoint("LEFT", minBox, "RIGHT", 6, 0)
-    gl:SetText("gold per lot")
+    gl:SetPoint("LEFT", minBox, "RIGHT", 8, 0)
+    gl:SetText("per lot")
+    W.Tip(minBox, "Minimum profit", "Only list auctions that make at least this much. Fill in any mix of gold, silver and copper.")
+
+    -- rarities to scan for
+    local QNAME = { [2] = "Uncommon", [3] = "Rare", [4] = "Epic" }
+    local chips, last = {}, nil
+    local scanFor = W.Text(p, 12, C.dim)
+    scanFor:SetPoint("TOPLEFT", 16, -56)
+    scanFor:SetText("Scan for")
+    for _, q in ipairs({ 2, 3, 4 }) do
+        local c = W.Button(p, QNAME[q], 80, 24)
+        if last then c:SetPoint("LEFT", last, "RIGHT", 6, 0) else c:SetPoint("LEFT", scanFor, "RIGHT", 12, 0) end
+        c.color = ns.QCOL[q]
+        c.idleColor = C.dim
+        c:SetScript("OnClick", function(self)
+            o["ahQ" .. q] = not o["ahQ" .. q]
+            self:SetActive(o["ahQ" .. q])
+            if Scan.running then Scan.Stop("stopped"); Scan.Start() end
+        end)
+        W.Tip(c, "Scan " .. QNAME[q] .. " gear", "Click to include or leave out this rarity. A running scan starts over.")
+        chips[q] = c
+        last = c
+    end
 
     local state = W.Text(p, 11, C.dim)
-    state:SetPoint("TOPLEFT", 16, -54)
+    state:SetPoint("TOPLEFT", 16, -84)
     state:SetPoint("RIGHT", p, "RIGHT", -16, 0)
     local counts = W.Text(p, 10, C.faint)
-    counts:SetPoint("TOPLEFT", 16, -70)
+    counts:SetPoint("TOPLEFT", 16, -100)
     counts:SetPoint("RIGHT", p, "RIGHT", -16, 0)
 
     local hdr = CreateFrame("Frame", nil, p)
-    hdr:SetPoint("TOPLEFT", 16, -92)
-    hdr:SetPoint("TOPRIGHT", -16, -92)
+    hdr:SetPoint("TOPLEFT", 16, -122)
+    hdr:SetPoint("TOPRIGHT", -16, -122)
     hdr:SetHeight(16)
     -- clickable column headers, like the auction house
     local heads = {}
-    local DEFAULT_ASC = { name = true, buyout = true }
+    local DEFAULT_ASC = { name = true, buyout = true }   -- rarity starts Epic first
     local function Head(label, key, point, x)
         local b = CreateFrame("Button", nil, hdr)
         b:SetHeight(16)
@@ -65,6 +85,7 @@ ns.PageBuilders.auction = function(content, main)
         return b
     end
     Head("Item", "name", "LEFT", 12)
+    Head("Rarity", "quality", "LEFT", 72)
     Head("%", "percent", "RIGHT", -12)
     Head("Profit", "profit", "RIGHT", -46)
     Head("Disenchant", "value", "RIGHT", -140)
@@ -134,9 +155,10 @@ ns.PageBuilders.auction = function(content, main)
 
     local page = { frame = p }
     function page.onShow()
-        minBox:SetText((o.auctionMinProfit or 0) > 0 and tostring(o.auctionMinProfit) or "")
+        minBox:Fill()
     end
     function page.refresh()
+        for q, c in pairs(chips) do c:SetActive(o["ahQ" .. q]) end
         for _, b in ipairs(heads) do b:Paint() end
         scanBtn:SetLabel(Scan.running and "Stop" or "Scan")
         scanBtn:SetEnabled(Scan.open and not Buy.active and true or false)
@@ -150,8 +172,11 @@ ns.PageBuilders.auction = function(content, main)
                 cur and cur.itemName and ("  ·  " .. cur.itemName) or "")
         end
         state:SetText(stText)
-        counts:SetText(string.format("Checked %d listings  ·  %d worth buying  ·  %d without prices or data  ·  pass %d",
-            Scan.checked or 0, #Scan.rows, Scan.skipped or 0, Scan.round or 0))
+        local passText = (Scan.round or 0) > 1
+            and string.format("pass %d (%d unchanged skipped)", Scan.round, Scan.unchanged or 0)
+            or string.format("pass %d", Scan.round or 0)
+        counts:SetText(string.format("%d weapons & armor  ·  %d could be deals  ·  %d worth buying  ·  %d no price  ·  %s",
+            Scan.total or 0, Scan.keys and #Scan.keys or 0, #Scan.rows, Scan.skipped or 0, passText))
         list:SetData(Scan.rows, Scan.open and (Scan.running and "Nothing found yet..." or "Click Scan to look for gear worth more disenchanted than its price.")
             or "Open the auction house to scan it.")
         if Buy.nextIndex then list:ScrollTo(Buy.nextIndex); Buy.nextIndex = nil end

@@ -280,6 +280,9 @@ ns.PageBuilders.settings = function(content, main)
         Opt(pg, RX, ry, "Keep scanning while you buy", "auctionKeepScanning", nil,
             "Buying only pauses the scan. It carries on from where it was once you buy or cancel.")
         ry = ry - 28
+        Opt(pg, RX, ry, "Keep watching after a full pass", "auctionWatch", nil,
+            "After checking the whole auction house once, keep looking for new and changed listings. Off: stop after one full pass.")
+        ry = ry - 28
         Opt(pg, RX, ry, "Mark new finds", "auctionMarkNew", nil,
             "Puts a green NEW tag on deals that turn up while the scanner keeps watching.")
     end

@@ -497,3 +497,57 @@ function W.ScrollArea(parent, contentHeight)
     sf.child, sf.Update = child, Update
     return sf
 end
+
+------------------------------------------------------------------------
+-- Money input: gold, silver and copper boxes, like the auction house
+------------------------------------------------------------------------
+local COIN = {
+    { "Interface\\MoneyFrame\\UI-GoldIcon", 52, 6, 10000 },
+    { "Interface\\MoneyFrame\\UI-SilverIcon", 34, 2, 100 },
+    { "Interface\\MoneyFrame\\UI-CopperIcon", 34, 2, 1 },
+}
+function W.MoneyBox(parent, get, set)
+    local f = CreateFrame("Frame", nil, parent)
+    f:SetHeight(26)
+    f.boxes = {}
+    local x = 0
+    for i, c in ipairs(COIN) do
+        local e = W.EditBox(f, c[2], 26, "0")
+        e:SetNumeric(true)
+        e:SetMaxLetters(c[3])
+        e:SetJustifyH("RIGHT")
+        e:SetTextInsets(4, 6, 0, 0)
+        e.ph:ClearAllPoints(); e.ph:SetPoint("RIGHT", -6, 0)
+        e:SetPoint("LEFT", x, 0)
+        local icon = f:CreateTexture(nil, "ARTWORK")
+        icon:SetSize(13, 13)
+        icon:SetTexture(c[1])
+        icon:SetPoint("LEFT", e, "RIGHT", 3, 0)
+        x = x + c[2] + 3 + 13 + 8
+        e:SetScript("OnTabPressed", function()
+            local nextBox = f.boxes[i % 3 + 1]
+            if nextBox then nextBox:SetFocus() end
+        end)
+        e.onChange = function()
+            if f.filling then return end
+            local total = 0
+            for j, b in ipairs(f.boxes) do
+                local v = tonumber(b:GetText()) or 0
+                if j > 1 then v = math.min(v, 99) end
+                total = total + v * COIN[j][4]
+            end
+            set(total)
+        end
+        e:HookScript("OnEditFocusLost", function() f:Fill() end)
+        f.boxes[i] = e
+    end
+    f:SetWidth(x - 8)
+    function f:Fill()
+        local v = math.max(0, math.floor(get() or 0))
+        local parts = { math.floor(v / 10000), math.floor(v / 100) % 100, v % 100 }
+        self.filling = true
+        for j, b in ipairs(self.boxes) do b:SetText(parts[j] > 0 and tostring(parts[j]) or "") end
+        self.filling = false
+    end
+    return f
+end

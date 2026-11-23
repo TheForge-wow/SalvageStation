@@ -2,7 +2,7 @@
 local ADDON, ns = ...
 _G.SalvageStation = ns
 
-ns.VERSION = "1.0.0"
+ns.VERSION = "1.0.1"
 ns.MEDIA = "Interface\\AddOns\\SalvageStation\\Media\\"
 ns.ADDON = ADDON
 
@@ -242,7 +242,7 @@ local DEFAULTS = {
         accent = "violet", scale = 1, minimap = { hide = false, angle = 210 }, badge = true,
         brokerSession = false,
         -- auction scanner
-        auction = true, auctionMinProfit = 0, auctionNext = true, auctionSort = "profit", auctionSortAsc = false, auctionKeepScanning = true, auctionMarkNew = true, confirmRemember = true,
+        auction = true, auctionMinProfit = 0, auctionMinProfitCopper = 0, ahQ2 = true, ahQ3 = true, ahQ4 = true, auctionNext = true, auctionSort = "profit", auctionSortAsc = false, auctionKeepScanning = true, auctionMarkNew = true, confirmRemember = true, auctionWatch = true,
     },
 }
 

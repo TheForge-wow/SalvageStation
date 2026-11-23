@@ -28,7 +28,7 @@ local function enqueue(name, ...)
 end
 
 -- sort by the column the user picked (click a header; click again to reverse)
-local SORT_KEYS = { name = true, buyout = true, value = true, profit = true, percent = true }
+local SORT_KEYS = { name = true, quality = true, buyout = true, value = true, profit = true, percent = true }
 local function sortRows()
     local o = ns.opts
     local key = SORT_KEYS[o.auctionSort] and o.auctionSort or "profit"
@@ -69,29 +69,44 @@ function Scan.Evaluate(result)
     if qty <= 0 then return nil, "ignored" end
     local id = ns.ItemID(result.itemLink)
     if not id or Blocked(id) then return nil, "ignored" end
-    local item = ItemFor(result.itemLink)
+    -- disenchant results depend on the base item (quality, level, type), not the "of the Owl" suffix,
+    -- so use the base item's data, which the browse step already loaded; only fall back to the link
+    local item = ItemFor(id) or ItemFor(result.itemLink)
     if not item then return nil, "loading" end
+    local linkName = result.itemLink:match("%[(.-)%]")
+    if linkName and linkName ~= "" then item.name = linkName end
     if item.classID ~= 2 and item.classID ~= 4 then return nil, "ignored" end
-    if not item.quality or item.quality < 2 or item.quality > 4 then return nil, "ignored" end
+    if not Scan.WantsQuality(item.quality) then return nil, "ignored" end
     if ns.TooltipRefuses(id, nil, nil, result.itemLink) then return nil, "ignored" end
     if not ns.Forecast.Get(item) then return nil, "ignored" end
     local value = ns.Forecast.Value(item)
     if not value then return nil, "unpriced" end
     local total = value * qty
     local profit = total - result.buyoutAmount
-    if profit <= 0 or profit < (ns.opts.auctionMinProfit or 0) * 10000 then return nil, "ignored" end
+    if profit <= 0 or profit < (ns.opts.auctionMinProfitCopper or 0) then return nil, "ignored" end
     return { auctionID = result.auctionID, itemKey = result.itemKey, link = result.itemLink, name = item.name,
              icon = item.icon, quality = item.quality, quantity = qty, buyout = result.buyoutAmount, value = total,
              profit = profit, percent = (total / result.buyoutAmount - 1) * 100 }
 end
 
 -- Fast check on the browse summary, before searching the item's listings
+function Scan.WantsQuality(q)
+    return q and q >= 2 and q <= 4 and ns.opts["ahQ" .. q] and true or false
+end
+
 function Scan.IsCandidate(result)
     local key = result.itemKey
     if Blocked(key.itemID) then return false end
+    -- weapons and armor only: GetItemInfoInstant needs no server data, so other items are dropped at once
+    local instant = C_Item and C_Item.GetItemInfoInstant or GetItemInfoInstant
+    if instant then
+        local _, _, _, _, _, classID = instant(key.itemID)
+        if classID and classID ~= 2 and classID ~= 4 then return false end
+    end
     local item = ItemFor(key.itemID)
     if not item then return nil end
     if item.classID ~= 2 and item.classID ~= 4 then return false end
+    if not Scan.WantsQuality(item.quality) then return false end
     local value = ns.Forecast.Value(item)
     if not value then return false, "unpriced" end
     if not result.minPrice or result.minPrice <= 0 then return true, nil, value end
@@ -106,6 +121,12 @@ local function finishRound()
     Scan.rows = rows
     sortRows()
     for k in pairs(Scan.verified) do if not Scan.seen[k] then Scan.verified[k] = nil end end
+    if not ns.opts.auctionWatch then
+        Scan.running, Scan.pending, Scan.waiting = false, nil, nil
+        Scan.state = "done"
+        changed()
+        return
+    end
     Scan.state, Scan.waiting = "monitoring", nil
     Scan.nextRound = GetTime() + Scan.interval
     changed()
@@ -135,10 +156,14 @@ local function beginRound()
     Scan.running, Scan.state = true, "browse"
     Scan.browseProgressAt = GetTime()
     Scan.current = nil
+    -- only the Weapons and Armor categories, and only the rarities picked on the Auction page
     local filters = {}
     local q = Enum and Enum.AuctionHouseFilter
-    if q and q.UncommonQuality and q.RareQuality and q.EpicQuality then
-        filters = { q.UncommonQuality, q.RareQuality, q.EpicQuality }
+    if q then
+        local o = ns.opts
+        if o.ahQ2 and q.UncommonQuality then filters[#filters + 1] = q.UncommonQuality end
+        if o.ahQ3 and q.RareQuality then filters[#filters + 1] = q.RareQuality end
+        if o.ahQ4 and q.EpicQuality then filters[#filters + 1] = q.EpicQuality end
     end
     enqueue("SendBrowseQuery", { searchString = "", sorts = {}, filters = filters, itemClassFilters = { { classID = 2 }, { classID = 4 } } })
     changed()
@@ -167,6 +192,7 @@ end
 
 function Scan.Start()
     if Buy.active or Scan.running then return end
+    if not (ns.opts.ahQ2 or ns.opts.ahQ3 or ns.opts.ahQ4) then Scan.Stop("norarity"); return end
     if not Scan.Supported() then Scan.Stop("unsupported"); return end
     if not Scan.open then Scan.Stop("closed"); return end
     Scan.rows, Scan.round, Scan.verified = {}, 0, {}
@@ -496,7 +522,9 @@ end
 Scan.STATE_TEXT = {
     idle = "Open the auction house and click Scan. Material prices come from TSM or Auctionator.",
     browse = "Loading the item list...", filtering = "Checking prices...", search = "Checking listings...", paused = "Paused while you buy - it carries on afterwards.",
-    loading = "Loading item data...", monitoring = "Watching: next pass in a few seconds.",
+    loading = "Loading item data...", norarity = "Pick at least one rarity to scan.",
+    monitoring = "Full pass done. Watching for new and changed listings...",
+    done = "Full pass done. Click Scan to check again.",
     stopped = "Stopped - partial results.", closed = "Auction house closed - results may be out of date.",
     unsupported = "This auction house interface isn't supported.", timeout = "The server didn't answer - scan again.",
     failed = "The search failed - scan again.", interrupted = "Another addon started a search - partial results.",
@@ -508,3 +536,12 @@ Buy.STATE_TEXT = {
     failed = "The purchase failed.", unknown = "No reply from the server - check your mail.",
     unavailable = "That lot is gone.", cancelled = "Cancelled.",
 }
+
+-- 1.0.0 stored the minimum profit in whole gold; it's now gold, silver and copper (in copper)
+ns.Listen("LOADED", function()
+    local o = ns.opts
+    if (o.auctionMinProfit or 0) > 0 then
+        if (o.auctionMinProfitCopper or 0) == 0 then o.auctionMinProfitCopper = o.auctionMinProfit * 10000 end
+        o.auctionMinProfit = 0
+    end
+end)
